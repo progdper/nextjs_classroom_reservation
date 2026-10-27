@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated_prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum ReservationStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  email       String   @unique
+  name        String?
+  authUserId  String?  @unique @db.Uuid
+  nickname    String?
+  nicknameKey String?  @unique
+  role        UserRole @default(USER)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reservations Reservation[]
+
+  @@map("users")
+}
+
+model Classroom {
+  id             String                   @id @default(uuid()) @db.Uuid
+  name           String
+  location       String
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  operatingHours ClassroomOperatingHour[]
+  reservations   Reservation[]
+
+  @@map("classrooms")
+}
+
+model ClassroomOperatingHour {
+  id          String    @id @default(uuid()) @db.Uuid
+  classroomId String    @db.Uuid
+  weekday     Int
+  startMinute Int
+  endMinute   Int
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Restrict)
+
+  @@unique([classroomId, weekday])
+  @@map("classroom_operating_hours")
+}
+
+model Reservation {
+  id          String            @id @default(uuid()) @db.Uuid
+  userId      String            @db.Uuid
+  classroomId String            @db.Uuid
+  startAt     DateTime          @db.Timestamptz(3)
+  endAt       DateTime          @db.Timestamptz(3)
+  status      ReservationStatus @default(CONFIRMED)
+  cancelledAt DateTime?         @db.Timestamptz(3)
+  createdAt   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime          @updatedAt @db.Timestamptz(3)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  classroom   Classroom         @relation(fields: [classroomId], references: [id], onDelete: Restrict)
+
+  @@index([classroomId, status, startAt])
+  @@index([userId, startAt])
+  @@map("reservations")
+}
